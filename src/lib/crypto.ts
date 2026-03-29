@@ -32,13 +32,19 @@ export function randomSalt(): Uint8Array {
 }
 
 export async function hashPassword(password: string, salt: Uint8Array): Promise<string> {
-  const key = await deriveKey(password, salt);
-  const testData = new TextEncoder().encode('novadrive-verify');
-  const { iv, ciphertext } = await encryptData(key, testData);
-  const combined = new Uint8Array(iv.length + ciphertext.byteLength);
-  combined.set(iv);
-  combined.set(new Uint8Array(ciphertext), iv.length);
-  return btoa(String.fromCharCode(...combined));
+  // Детерминированный хеш: PBKDF2(password, salt) → экспортируем raw bytes → SHA-256
+  // Не используем encryptData — там рандомный iv, результат всегда разный
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw', enc.encode(password), 'PBKDF2', false, ['deriveBits']
+  );
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+    keyMaterial,
+    256
+  );
+  const hashBuf = await crypto.subtle.digest('SHA-256', bits);
+  return bufferToBase64(hashBuf);
 }
 
 export function bufferToBase64(buffer: ArrayBuffer): string {

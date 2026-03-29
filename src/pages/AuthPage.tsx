@@ -53,11 +53,7 @@ export default function AuthPage({ onAuth }: AuthPageProps) {
     if (!login.trim() || !password || !name.trim()) { setError('Заполните все поля'); return; }
     if (login.trim().length < 3) { setError('Логин должен быть не менее 3 символов'); return; }
     if (password.length < 8) { setError('Пароль должен быть не менее 8 символов'); return; }
-    const existing = loadAccount();
-    if (existing) {
-      setError('На этом устройстве уже есть аккаунт. Войдите или сбросьте данные.');
-      return;
-    }
+    // Не блокируем — разрешаем перезаписать аккаунт
     setLoading(true);
     setLoadingText('Генерируем ключ шифрования...');
     try {
