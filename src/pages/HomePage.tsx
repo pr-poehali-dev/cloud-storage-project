@@ -1,10 +1,10 @@
+import { useState, useEffect } from 'react';
 import Icon from '@/components/ui/icon';
+import { getAllFilesSize, getAllFilesCount, getFiles, getFolders } from '@/lib/db';
 
 interface User {
-  id: string;
   login: string;
   name: string;
-  email: string;
 }
 
 interface HomePageProps {
@@ -12,82 +12,107 @@ interface HomePageProps {
   onNavigate: (page: 'home' | 'storage' | 'profile' | 'security') => void;
 }
 
-const usedGB = 347.2;
-const totalGB = 1024;
-const usedPercent = (usedGB / totalGB) * 100;
+const MAX_BYTES = 1 * 1024 * 1024 * 1024 * 1024;
 
-const recentFiles = [
-  { name: 'Отчёт_Q1_2025.xlsx', size: '2.4 МБ', date: 'Сегодня', icon: 'FileSpreadsheet', color: '#22c55e' },
-  { name: 'Презентация_проект.pptx', size: '18.7 МБ', date: 'Вчера', icon: 'FilePresentation', color: '#f59e0b' },
-  { name: 'Фото_отпуск_2024.zip', size: '1.2 ГБ', date: '25 мар', icon: 'Archive', color: '#1a8fff' },
-  { name: 'Contract_signed.pdf', size: '456 КБ', date: '24 мар', icon: 'FileText', color: '#ef4444' },
-];
-
-const stats = [
-  { label: 'Файлов', value: '1 284', icon: 'Files', color: '#1a8fff' },
-  { label: 'Папок', value: '47', icon: 'FolderOpen', color: '#00d4ff' },
-  { label: 'Синхронизировано', value: '100%', icon: 'RefreshCw', color: '#22c55e' },
-];
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} Б`;
+  if (bytes < 1048576) return `${(bytes / 1024).toFixed(0)} КБ`;
+  if (bytes < 1073741824) return `${(bytes / 1048576).toFixed(1)} МБ`;
+  return `${(bytes / 1073741824).toFixed(2)} ГБ`;
+}
 
 export default function HomePage({ user, onNavigate }: HomePageProps) {
+  const [usedBytes, setUsedBytes] = useState(0);
+  const [fileCount, setFileCount] = useState(0);
+  const [folderCount, setFolderCount] = useState(0);
+  const [recentFiles, setRecentFiles] = useState<{ name: string; size: number; mimeType: string; createdAt: number }[]>([]);
+
+  useEffect(() => {
+    async function load() {
+      const [size, count, folders, files] = await Promise.all([
+        getAllFilesSize(),
+        getAllFilesCount(),
+        getFolders(null),
+        getFiles(null),
+      ]);
+      setUsedBytes(size);
+      setFileCount(count);
+      setFolderCount(folders.length);
+      setRecentFiles(files.slice(0, 4));
+    }
+    load();
+  }, []);
+
+  const usedPct = Math.min(100, (usedBytes / MAX_BYTES) * 100);
+
+  function getFileIcon(mime: string): { icon: string; color: string } {
+    if (mime.startsWith('image/')) return { icon: 'Image', color: '#ec4899' };
+    if (mime.startsWith('video/')) return { icon: 'Video', color: '#a855f7' };
+    if (mime.startsWith('audio/')) return { icon: 'Music', color: '#f59e0b' };
+    if (mime.includes('pdf')) return { icon: 'FileText', color: '#ef4444' };
+    if (mime.includes('zip') || mime.includes('rar')) return { icon: 'Archive', color: '#8b5cf6' };
+    if (mime.includes('sheet') || mime.includes('excel')) return { icon: 'FileSpreadsheet', color: '#22c55e' };
+    return { icon: 'File', color: '#1a8fff' };
+  }
+
+  function timeAgo(ts: number): string {
+    const diff = Date.now() - ts;
+    if (diff < 60000) return 'только что';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)} мин назад`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)} ч назад`;
+    return new Date(ts).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+  }
+
   return (
     <div className="min-h-screen bg-background bg-grid pb-24">
       <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-[rgba(26,143,255,0.08)] to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[rgba(26,143,255,0.06)] to-transparent pointer-events-none" />
         <div className="px-4 pt-12 pb-6 relative">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <p className="text-muted-foreground text-sm">Добро пожаловать,</p>
+              <p className="text-muted-foreground text-sm">Привет,</p>
               <h1 className="text-xl font-bold text-foreground">{user.name}</h1>
             </div>
             <div className="flex items-center gap-3">
-              <div className="pulse-dot" />
+              <div className="flex items-center gap-1.5">
+                <div className="pulse-dot" />
+                <span className="text-xs text-muted-foreground">Локально</span>
+              </div>
               <button onClick={() => onNavigate('profile')}
-                className="w-10 h-10 rounded-xl neon-border flex items-center justify-center"
+                className="w-9 h-9 rounded-xl neon-border flex items-center justify-center"
                 style={{ background: 'rgba(26,143,255,0.12)' }}>
-                <Icon name="User" size={18} className="text-neon" />
+                <Icon name="User" size={17} className="text-neon" />
               </button>
             </div>
           </div>
 
-          <div className="glass-card rounded-2xl p-4 mb-4">
+          <div className="glass-card rounded-2xl p-4 mb-4 animate-fade-in">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <p className="text-xs text-muted-foreground mb-1">Использовано хранилище</p>
+                <p className="text-xs text-muted-foreground mb-1">Занято на устройстве</p>
                 <p className="text-lg font-bold text-foreground">
-                  {usedGB} ГБ <span className="text-sm font-normal text-muted-foreground">/ 1 ТБ</span>
+                  {formatSize(usedBytes)} <span className="text-sm font-normal text-muted-foreground">/ 1 ТБ</span>
                 </p>
               </div>
-              <div className="text-right">
-                <p className="text-2xl font-bold text-neon mono">{usedPercent.toFixed(1)}%</p>
-                <p className="text-xs text-muted-foreground">{(totalGB - usedGB).toFixed(0)} ГБ свободно</p>
-              </div>
+              <p className="text-2xl font-bold text-neon mono">{usedPct < 0.01 ? '0' : usedPct.toFixed(1)}%</p>
             </div>
             <div className="h-2 bg-[rgba(26,143,255,0.12)] rounded-full overflow-hidden">
               <div className="progress-neon h-full rounded-full transition-all duration-1000"
-                style={{ width: `${usedPercent}%` }} />
+                style={{ width: `${Math.max(usedPct, 0.2)}%` }} />
             </div>
-            <div className="flex gap-2 mt-3">
-              {[
-                { color: '#1a8fff', label: 'Документы', pct: 35 },
-                { color: '#22c55e', label: 'Фото', pct: 45 },
-                { color: '#f59e0b', label: 'Видео', pct: 12 },
-                { color: '#a855f7', label: 'Прочее', pct: 8 },
-              ].map(item => (
-                <div key={item.label} className="flex items-center gap-1">
-                  <div className="w-2 h-2 rounded-full" style={{ background: item.color }} />
-                  <span className="text-xs text-muted-foreground">{item.label}</span>
-                </div>
-              ))}
-            </div>
+            <p className="text-xs text-muted-foreground mt-2">{formatSize(MAX_BYTES - usedBytes)} свободно</p>
           </div>
         </div>
       </div>
 
       <div className="px-4">
         <div className="grid grid-cols-3 gap-3 mb-6">
-          {stats.map((s, i) => (
-            <div key={s.label} className={`glass-card rounded-xl p-3 text-center animate-fade-in delay-${(i+1)*100}`}>
+          {[
+            { label: 'Файлов', value: fileCount.toString(), icon: 'Files', color: '#1a8fff' },
+            { label: 'Папок', value: folderCount.toString(), icon: 'FolderOpen', color: '#00d4ff' },
+            { label: 'Шифрование', value: 'ON', icon: 'ShieldCheck', color: '#22c55e' },
+          ].map((s, i) => (
+            <div key={s.label} className={`glass-card rounded-xl p-3 text-center animate-fade-in delay-${(i + 1) * 100}`}>
               <div className="flex justify-center mb-2">
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center"
                   style={{ background: `${s.color}20` }}>
@@ -113,38 +138,48 @@ export default function HomePage({ user, onNavigate }: HomePageProps) {
           </button>
         </div>
 
-        <div className="mb-4">
-          <p className="section-header mb-3">Последние файлы</p>
-          <div className="space-y-2">
-            {recentFiles.map((file, i) => (
-              <div key={file.name} className={`file-item animate-fade-in delay-${(i+1)*100}`}>
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-                  style={{ background: `${file.color}20` }}>
-                  <Icon name={file.icon} size={18} style={{ color: file.color }} fallback="File" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{file.name}</p>
-                  <p className="text-xs text-muted-foreground">{file.size} · {file.date}</p>
-                </div>
-                <button className="text-muted-foreground hover:text-foreground p-1">
-                  <Icon name="MoreVertical" size={16} />
-                </button>
+        {recentFiles.length > 0 && (
+          <div className="mb-4 animate-fade-in delay-200">
+            <p className="section-header mb-3">Последние файлы</p>
+            <div className="space-y-2">
+              {recentFiles.map(file => {
+                const { icon, color } = getFileIcon(file.mimeType);
+                return (
+                  <div key={file.createdAt + file.name}
+                    className="file-item" onClick={() => onNavigate('storage')}>
+                    <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+                      style={{ background: `${color}20` }}>
+                      <Icon name={icon} size={18} style={{ color }} fallback="File" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{file.name}</p>
+                      <p className="text-xs text-muted-foreground">{formatSize(file.size)} · {timeAgo(file.createdAt)}</p>
+                    </div>
+                    <Icon name="Lock" size={12} className="text-muted-foreground opacity-40" />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <div className="glass-card rounded-2xl p-4 animate-fade-in delay-300"
+          style={{ background: 'linear-gradient(135deg, rgba(26,143,255,0.07) 0%, rgba(0,212,255,0.04) 100%)' }}>
+          <div className="flex items-center gap-3 mb-3">
+            <Icon name="Shield" size={18} className="text-neon" />
+            <p className="text-sm font-semibold text-foreground">Zero-Knowledge хранилище</p>
+          </div>
+          <div className="space-y-1.5">
+            {[
+              'Файлы шифруются прямо в браузере (AES-GCM 256-bit)',
+              'Ключ выводится из пароля через PBKDF2 × 310 000',
+              'Никаких серверов, никаких запросов, полная анонимность',
+            ].map(t => (
+              <div key={t} className="flex items-start gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-neon mt-1.5 flex-shrink-0" style={{ background: '#1a8fff' }} />
+                <p className="text-xs text-muted-foreground">{t}</p>
               </div>
             ))}
-          </div>
-        </div>
-
-        <div className="glass-card rounded-2xl p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{ background: 'rgba(0,212,255,0.15)' }}>
-              <Icon name="RefreshCw" size={18} className="text-neon-cyan" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-foreground">Синхронизация активна</p>
-              <p className="text-xs text-muted-foreground">Все устройства актуальны · только что</p>
-            </div>
-            <div className="pulse-dot" />
           </div>
         </div>
       </div>
