@@ -156,3 +156,45 @@ export function saveSession(login: string): void {
 export function loadSession(): string | null {
   return sessionStorage.getItem('nd_session');
 }
+
+export async function getAllFiles(): Promise<EncryptedFile[]> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const t = db.transaction(FILES_STORE, 'readonly');
+    const req = t.objectStore(FILES_STORE).getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+export async function getAllFolders(): Promise<Folder[]> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const t = db.transaction(FOLDERS_STORE, 'readonly');
+    const req = t.objectStore(FOLDERS_STORE).getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+export async function importFiles(files: EncryptedFile[]): Promise<void> {
+  const db = await openDB();
+  const t = db.transaction(FILES_STORE, 'readwrite');
+  const s = t.objectStore(FILES_STORE);
+  for (const f of files) s.put(f);
+  return new Promise((resolve, reject) => {
+    t.oncomplete = () => resolve();
+    t.onerror = () => reject(t.error);
+  });
+}
+
+export async function importFolders(folders: Folder[]): Promise<void> {
+  const db = await openDB();
+  const t = db.transaction(FOLDERS_STORE, 'readwrite');
+  const s = t.objectStore(FOLDERS_STORE);
+  for (const f of folders) s.put(f);
+  return new Promise((resolve, reject) => {
+    t.oncomplete = () => resolve();
+    t.onerror = () => reject(t.error);
+  });
+}

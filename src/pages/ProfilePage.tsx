@@ -12,9 +12,10 @@ interface ProfilePageProps {
   user: User;
   onUpdate: (user: User) => void;
   onLogout: () => void;
+  onExport: () => void;
 }
 
-export default function ProfilePage({ user, onUpdate, onLogout }: ProfilePageProps) {
+export default function ProfilePage({ user, onUpdate, onLogout, onExport }: ProfilePageProps) {
   const [editing, setEditing] = useState<'name' | 'login' | 'password' | null>(null);
   const [name, setName] = useState(user.name);
   const [login, setLogin] = useState(user.login);
@@ -232,6 +233,26 @@ export default function ProfilePage({ user, onUpdate, onLogout }: ProfilePagePro
               <div className="progress-neon h-full rounded-full" style={{ width: '33.9%' }} />
             </div>
           </div>
+        </div>
+
+        <div className="glass-card rounded-2xl overflow-hidden mb-4 animate-fade-in delay-300">
+          <div className="px-4 py-3 border-b border-[rgba(26,143,255,0.08)]">
+            <p className="section-header">Перенос данных</p>
+          </div>
+          <button onClick={onExport}
+            className="w-full px-4 py-3.5 flex items-center justify-between hover:bg-[rgba(26,143,255,0.05)] transition-colors">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center"
+                style={{ background: 'rgba(0,212,255,0.15)' }}>
+                <Icon name="PackageOpen" size={15} className="text-neon-cyan" fallback="Archive" />
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-medium text-foreground">Экспорт / Импорт хранилища</p>
+                <p className="text-xs text-muted-foreground">Зашифрованный .ndrive архив</p>
+              </div>
+            </div>
+            <Icon name="ChevronRight" size={16} className="text-muted-foreground" />
+          </button>
         </div>
 
         <button onClick={onLogout}

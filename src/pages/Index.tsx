@@ -4,11 +4,12 @@ import HomePage from './HomePage';
 import StoragePage from './StoragePage';
 import ProfilePage from './ProfilePage';
 import SecurityPage from './SecurityPage';
+import ExportPage from './ExportPage';
 import BottomNav from '@/components/BottomNav';
 import Icon from '@/components/ui/icon';
 import { loadAccount, loadSession, saveAccount } from '@/lib/db';
 
-type Page = 'home' | 'storage' | 'profile' | 'security';
+type Page = 'home' | 'storage' | 'profile' | 'security' | 'export';
 
 interface User {
   login: string;
@@ -62,13 +63,11 @@ export default function Index() {
     );
   }
 
-  if (!user) {
+  if (!user || !cryptoKey) {
     return <AuthPage onAuth={handleAuth} />;
   }
 
-  if (!cryptoKey) {
-    return <AuthPage onAuth={handleAuth} />;
-  }
+  const navPage = page === 'export' ? 'profile' : page;
 
   return (
     <div className="relative">
@@ -79,10 +78,17 @@ export default function Index() {
           user={{ id: '1', login: user.login, name: user.name, email: '' }}
           onUpdate={handleUpdateUser}
           onLogout={handleLogout}
+          onExport={() => setPage('export')}
         />
       )}
       {page === 'security' && <SecurityPage />}
-      <BottomNav current={page} onChange={setPage} />
+      {page === 'export' && (
+        <ExportPage
+          onBack={() => setPage('profile')}
+          onImportComplete={() => setPage('storage')}
+        />
+      )}
+      <BottomNav current={navPage as 'home' | 'storage' | 'profile' | 'security'} onChange={setPage} />
     </div>
   );
 }
