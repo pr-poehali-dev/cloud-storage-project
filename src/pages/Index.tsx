@@ -1,14 +1,35 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from 'react';
+import AuthPage from './AuthPage';
+import HomePage from './HomePage';
+import StoragePage from './StoragePage';
+import ProfilePage from './ProfilePage';
+import SecurityPage from './SecurityPage';
+import BottomNav from '@/components/BottomNav';
 
-const Index = () => {
+type Page = 'home' | 'storage' | 'profile' | 'security';
+
+interface User {
+  id: string;
+  login: string;
+  name: string;
+  email: string;
+}
+
+export default function Index() {
+  const [user, setUser] = useState<User | null>(null);
+  const [page, setPage] = useState<Page>('home');
+
+  if (!user) {
+    return <AuthPage onAuth={(u) => setUser(u)} />;
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4 color-black text-black">Добро пожаловать!</h1>
-        <p className="text-xl text-gray-600">тут будет отображаться ваш проект</p>
-      </div>
+    <div className="relative">
+      {page === 'home' && <HomePage user={user} onNavigate={setPage} />}
+      {page === 'storage' && <StoragePage />}
+      {page === 'profile' && <ProfilePage user={user} onUpdate={setUser} onLogout={() => setUser(null)} />}
+      {page === 'security' && <SecurityPage />}
+      <BottomNav current={page} onChange={setPage} />
     </div>
   );
-};
-
-export default Index;
+}
